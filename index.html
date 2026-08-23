@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Pill Companion</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#B85C73">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F5EFF3;
+    --card:#FFFFFF;
+    --card-soft:#FBF7FA;
+    --ink:#2B2233;
+    --ink-soft:#6E6376;
+    --line:#E7DEE6;
+    --rose:#B85C73;
+    --rose-deep:#9C4A5F;
+    --sage:#6E8F72;
+    --sage-soft:#E4EDE4;
+    --amber:#E2A54B;
+    --amber-soft:#FBF0DD;
+    --terracotta:#C15C4E;
+    --terracotta-soft:#F6E4E1;
+    --foil:#EDE3E9;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:linear-gradient(180deg,#F7F1F5 0%,#F1E9EF 100%);
+    color:var(--ink);
+    font-family:'Work Sans',sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:0;
+  }
+  .app{
+    width:100%;
+    max-width:480px;
+    min-height:100vh;
+    background:var(--bg);
+    position:relative;
+    padding-bottom:40px;
+  }
+  header{
+    padding:28px 24px 20px;
+  }
+  .eyebrow{
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--rose-deep);
+    font-weight:600;
+    margin:0 0 6px;
+  }
+  h1{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:30px;
+    margin:0;
+    line-height:1.15;
+  }
+  .pillname-edit{
+    background:none;border:none;font-family:'Fraunces',serif;font-weight:600;
+    font-size:30px;color:var(--ink);padding:0;width:100%;border-bottom:2px dashed transparent;
+  }
+  .pillname-edit:focus{outline:none;border-bottom-color:var(--rose);}
+  .subtitle{color:var(--ink-soft);font-size:14.5px;margin-top:6px;}
+
+  .card{
+    background:var(--card);
+    margin:0 20px 18px;
+    padding:20px;
+    border-radius:20px;
+    box-shadow:0 1px 2px rgba(43,34,51,.04), 0 8px 24px rgba(43,34,51,.05);
+  }
+
+  .next-dose{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+  }
+  .next-dose .label{font-size:13px;color:var(--ink-soft);margin-bottom:4px;}
+  .next-dose .time{font-family:'Fraunces',serif;font-size:26px;font-weight:600;}
+  .streak-badge{
+    background:var(--sage-soft);color:var(--sage);
+    border-radius:14px;padding:10px 14px;text-align:center;min-width:74px;
+  }
+  .streak-badge .num{font-family:'Fraunces',serif;font-size:22px;font-weight:700;display:block;line-height:1;}
+  .streak-badge .txt{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--sage);}
+
+  /* --- Blister pack signature element --- */
+  .blister-title{
+    font-family:'Fraunces',serif;font-size:17px;font-weight:600;margin:0 0 4px;
+  }
+  .blister-sub{font-size:12.5px;color:var(--ink-soft);margin:0 0 16px;}
+  .blister{
+    background:var(--foil);
+    border-radius:16px;
+    padding:16px 14px;
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:8px 6px;
+    box-shadow:inset 0 1px 3px rgba(43,34,51,.08);
+  }
+  .cell{
+    position:relative;
+    aspect-ratio:1/1;
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:10.5px;
+    font-weight:600;
+    color:var(--ink-soft);
+  }
+  .cell .bubble{
+    width:100%;height:100%;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 1px 1px rgba(255,255,255,.6) inset, 0 1px 3px rgba(43,34,51,.15);
+  }
+  .cell.future .bubble{background:#fff;border:1.5px solid #E2D6DF;color:var(--ink-soft);}
+  .cell.taken .bubble{background:var(--sage);color:#fff;border:1.5px solid var(--sage);}
+  .cell.missed .bubble{background:var(--terracotta-soft);color:var(--terracotta);border:1.5px solid var(--terracotta);}
+  .cell.today .bubble{background:var(--amber);color:#fff;border:1.5px solid var(--amber);animation:pulse 1.8s infinite;}
+  .cell.break .bubble{background:transparent;border:1.5px dashed #D8CCD3;color:#C9BCC5;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(226,165,75,.45);}50%{box-shadow:0 0 0 6px rgba(226,165,75,0);}}
+
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;font-size:11.5px;color:var(--ink-soft);}
+  .legend span{display:inline-flex;align-items:center;gap:5px;}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .dot.taken{background:var(--sage);} .dot.missed{background:var(--terracotta);}
+  .dot.today{background:var(--amber);} .dot.break{border:1.5px dashed #C9BCC5;}
+
+  /* --- settings --- */
+  .row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);}
+  .row:last-child{border-bottom:none;}
+  .row label{font-size:14.5px;font-weight:500;}
+  .row .hint{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  input[type=time],input[type=date],select{
+    font-family:'Work Sans',sans-serif;font-size:14.5px;padding:8px 10px;
+    border-radius:10px;border:1.5px solid var(--line);background:var(--card-soft);color:var(--ink);
+  }
+  .btn{
+    border:none;border-radius:12px;padding:12px 18px;font-weight:600;font-size:14.5px;
+    cursor:pointer;font-family:'Work Sans',sans-serif;
+  }
+  .btn-primary{background:var(--rose);color:#fff;}
+  .btn-primary:active{background:var(--rose-deep);}
+  .btn-ghost{background:var(--card-soft);color:var(--ink);border:1.5px solid var(--line);}
+  .btn-block{width:100%;}
+  .status-pill{
+    display:inline-block;font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;
+  }
+  .status-pill.on{background:var(--sage-soft);color:var(--sage);}
+  .status-pill.off{background:var(--terracotta-soft);color:var(--terracotta);}
+
+  .history-item{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px;}
+  .history-item:last-child{border-bottom:none;}
+  .history-item .d{color:var(--ink-soft);}
+  .tag{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;}
+  .tag.taken{background:var(--sage-soft);color:var(--sage);}
+  .tag.missed{background:var(--terracotta-soft);color:var(--terracotta);}
+
+  .footnote{padding:0 24px;font-size:12px;color:var(--ink-soft);line-height:1.6;}
+
+  /* --- alarm overlay --- */
+  .overlay{
+    position:fixed;inset:0;background:rgba(43,34,51,.55);backdrop-filter:blur(2px);
+    display:none;align-items:flex-end;justify-content:center;z-index:50;
+  }
+  .overlay.active{display:flex;}
+  .sheet{
+    width:100%;max-width:480px;background:var(--card);border-radius:24px 24px 0 0;
+    padding:32px 24px 28px;text-align:center;animation:slideup .35s ease;
+  }
+  @keyframes slideup{from{transform:translateY(30px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  .pill-icon{
+    width:64px;height:64px;border-radius:50%;background:var(--amber-soft);
+    display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:28px;
+  }
+  .sheet h2{font-family:'Fraunces',serif;font-size:22px;margin:0 0 6px;}
+  .sheet p{color:var(--ink-soft);font-size:14px;margin:0 0 22px;}
+  .sheet .btn-primary{width:100%;padding:15px;font-size:15.5px;margin-bottom:10px;}
+  .sheet .btn-ghost{width:100%;padding:13px;}
+
+  details summary{cursor:pointer;font-size:13px;color:var(--rose-deep);font-weight:600;}
+  details p{font-size:12.5px;color:var(--ink-soft);line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <p class="eyebrow">Daily reminder</p>
+    <input class="pillname-edit" id="pillNameInput" value="Diane 45" spellcheck="false">
+    <p class="subtitle" id="subtitleText">Set your dose time below and confirm each day once it's taken.</p>
+  </header>
+
+  <div class="card next-dose">
+    <div>
+      <div class="label">Today's reminder</div>
+      <div class="time" id="nextDoseTime">--:--</div>
+    </div>
+    <div class="streak-badge">
+      <span class="num" id="streakNum">0</span>
+      <span class="txt">day streak</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="blister-title">This pack</p>
+    <p class="blister-sub" id="cycleLabel">Day 1</p>
+    <div class="blister" id="blisterGrid"></div>
+    <div class="legend">
+      <span><span class="dot taken"></span>Taken</span>
+      <span><span class="dot missed"></span>Missed</span>
+      <span><span class="dot today"></span>Today</span>
+      <span><span class="dot break"></span>Break week</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <div><label>Reminder time</label><div class="hint">Alarm goes off daily at this time</div></div>
+      <input type="time" id="reminderTime" value="20:00">
+    </div>
+    <div class="row">
+      <div><label>Pack size</label><div class="hint">Active pills before the break week</div></div>
+      <select id="packSize">
+        <option value="21">21 pills</option>
+        <option value="28">28 pills (continuous)</option>
+      </select>
+    </div>
+    <div class="row">
+      <div><label>Pack start date</label><div class="hint">First active pill of this pack</div></div>
+      <input type="date" id="startDate">
+    </div>
+    <div class="row">
+      <div><label>Notifications</label><div class="hint">Browser alerts alongside the in-app alarm</div></div>
+      <span class="status-pill off" id="notifStatus">Off</span>
+    </div>
+  </div>
+
+  <div class="card" style="display:flex;gap:10px;">
+    <button class="btn btn-ghost btn-block" id="enableNotif">Enable notifications</button>
+    <button class="btn btn-ghost btn-block" id="newPack">Start new pack</button>
+  </div>
+
+  <div class="card">
+    <p class="blister-title">History</p>
+    <div id="historyList"><div class="hint">No entries yet.</div></div>
+  </div>
+
+  <div class="footnote">
+    <p>This app is a reminder and tracking tool only — it doesn't give medical advice. Follow your doctor's or pharmacist's instructions for taking Diane 45.</p>
+    <details>
+      <summary>About background alarms</summary>
+      <p>Opened as a local file or a plain browser tab, the alarm fires reliably while this app is open or running in the background (not force-closed). For alarms to also work when the phone browser is fully closed, this page needs to be hosted online over HTTPS and installed as a home-screen app — ask me if you'd like help setting that up for free (e.g. with GitHub Pages).</p>
+    </details>
+  </div>
+
+</div>
+
+<div class="overlay" id="alarmOverlay">
+  <div class="sheet">
+    <div class="pill-icon">💊</div>
+    <h2 id="alarmTitle">Time for your pill</h2>
+    <p id="alarmSub">Take it now, then confirm below to stop the alarm.</p>
+    <button class="btn btn-primary" id="confirmTaken">I've taken it</button>
+    <button class="btn btn-ghost" id="snoozeBtn">Snooze 10 minutes</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const STORAGE_KEY = 'pillCompanionState_v1';
+
+  function todayStr(d=new Date()){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function addDays(dateStr, n){
+    const d = new Date(dateStr+'T00:00:00');
+    d.setDate(d.getDate()+n);
+    return d;
+  }
+  function dayDiff(fromStr, toStr){
+    const a = new Date(fromStr+'T00:00:00');
+    const b = new Date(toStr+'T00:00:00');
+    return Math.round((b-a)/86400000);
+  }
+
+  let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || {
+    pillName: 'Diane 45',
+    reminderTime: '20:00',
+    packSize: 21,
+    startDate: todayStr(),
+    log: {},          // { 'YYYY-MM-DD': {taken:bool, time:'HH:MM'} }
+    alarmActive: false,
+    notifOn: false
+  };
+
+  function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+  // ---- init form values ----
+  $('pillNameInput').value = state.pillName;
+  $('reminderTime').value = state.reminderTime;
+  $('packSize').value = String(state.packSize);
+  $('startDate').value = state.startDate;
+  updateNotifUI();
+
+  $('pillNameInput').addEventListener('change', e=>{
+    state.pillName = e.target.value.trim() || 'Pill';
+    save(); renderAll();
+  });
+  $('reminderTime').addEventListener('change', e=>{
+    state.reminderTime = e.target.value; save(); renderAll();
+  });
+  $('packSize').addEventListener('change', e=>{
+    state.packSize = parseInt(e.target.value,10); save(); renderAll();
+  });
+  $('startDate').addEventListener('change', e=>{
+    state.startDate = e.target.value; save(); renderAll();
+  });
+  $('newPack').addEventListener('click', ()=>{
+    if(!confirm('Start a new pack today? This resets the current pack view (your history stays saved).')) return;
+    state.startDate = todayStr();
+    save(); renderAll();
+  });
+  $('enableNotif').addEventListener('click', ()=>{
+    if(!('Notification' in window)){ alert('Notifications are not supported in this browser.'); return; }
+    Notification.requestPermission().then(perm=>{
+      state.notifOn = perm === 'granted';
+      save(); updateNotifUI();
+    });
+  });
+  function updateNotifUI(){
+    const el = $('notifStatus');
+    el.textContent = state.notifOn ? 'On' : 'Off';
+    el.className = 'status-pill ' + (state.notifOn ? 'on':'off');
+  }
+
+  // ---- cycle math ----
+  function cycleLength(){ return 28; } // 21/28 packs both sit in a 28-day cycle grid; 21-day packs show a break week
+  function dayIndexFor(dateStr){
+    // 0-based index within current 28-day cycle
+    const diff = dayDiff(state.startDate, dateStr);
+    if(diff < 0) return null;
+    return diff % 28;
+  }
+  function isActivePillDay(idx){
+    return idx < state.packSize;
+  }
+
+  // ---- render blister grid ----
+  function renderBlister(){
+    const grid = $('blisterGrid');
+    grid.innerHTML = '';
+    const today = todayStr();
+    const todayIdx = dayIndexFor(today);
+    $('cycleLabel').textContent = todayIdx===null ? 'Starts ' + state.startDate : 'Day ' + (todayIdx+1) + ' of 28';
+
+    for(let i=0;i<28;i++){
+      const cellDate = todayStr(addDays(state.startDate, i));
+      const cell = document.createElement('div');
+      const active = isActivePillDay(i);
+      const entry = state.log[cellDate];
+      let cls = 'cell ';
+      let label = String(i+1);
+
+      if(!active){
+        cls += 'break';
+      } else if(cellDate === today){
+        cls += entry && entry.taken ? 'taken' : 'today';
+      } else if(entry && entry.taken){
+        cls += 'taken';
+      } else if(cellDate < today){
+        cls += 'missed';
+      } else {
+        cls += 'future';
+      }
+      cell.className = cls;
+      cell.innerHTML = '<div class="bubble">'+ (cls.includes('taken') ? '✓' : (cls.includes('missed') ? '!' : label)) +'</div>';
+      grid.appendChild(cell);
+    }
+  }
+
+  // ---- streak ----
+  function computeStreak(){
+    let streak = 0;
+    let d = todayStr();
+    // if today already taken, count today too; otherwise start from yesterday
+    if(state.log[d] && state.log[d].taken){ streak++; d = todayStr(addDays(d,-1)); }
+    else { d = todayStr(addDays(d,-1)); }
+    while(true){
+      const idx = dayIndexFor(d);
+      if(idx===null) break;
+      if(!isActivePillDay(idx)){ d = todayStr(addDays(d,-1)); continue; } // break days don't reset streak
+      if(state.log[d] && state.log[d].taken){ streak++; d = todayStr(addDays(d,-1)); }
+      else break;
+    }
+    return streak;
+  }
+
+  // ---- history ----
+  function renderHistory(){
+    const entries = Object.keys(state.log).sort().reverse().slice(0,14);
+    const el = $('historyList');
+    if(entries.length===0){ el.innerHTML = '<div class="hint">No entries yet.</div>'; return; }
+    el.innerHTML = entries.map(date=>{
+      const e = state.log[date];
+      const tag = e.taken ? '<span class="tag taken">Taken '+(e.time||'')+'</span>' : '<span class="tag missed">Missed</span>';
+      return '<div class="history-item"><span class="d">'+date+'</span>'+tag+'</div>';
+    }).join('');
+  }
+
+  function renderAll(){
+    $('nextDoseTime').textContent = state.reminderTime;
+    $('streakNum').textContent = computeStreak();
+    renderBlister();
+    renderHistory();
+  }
+
+  // ---- alarm engine ----
+  let audioCtx = null;
+  let beepInterval = null;
+  function startBeep(){
+    if(beepInterval) return;
+    try{ audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return; }
+    function beep(){
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'sine'; o.frequency.value = 880;
+      g.gain.value = 0.15;
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(); o.stop(audioCtx.currentTime + 0.35);
+    }
+    beep();
+    beepInterval = setInterval(beep, 1600);
+  }
+  function stopBeep(){
+    if(beepInterval){ clearInterval(beepInterval); beepInterval=null; }
+  }
+
+  function showAlarm(){
+    $('alarmTitle').textContent = 'Time for your ' + state.pillName;
+    $('alarmOverlay').classList.add('active');
+    startBeep();
+    if(state.notifOn && 'Notification' in window){
+      try{ new Notification('Pill Companion', {body:'Time for your ' + state.pillName + '. Confirm in the app.'}); }catch(e){}
+    }
+  }
+  function hideAlarm(){
+    $('alarmOverlay').classList.remove('active');
+    stopBeep();
+  }
+
+  $('confirmTaken').addEventListener('click', ()=>{
+    const now = new Date();
+    const t = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+    state.log[todayStr()] = {taken:true, time:t};
+    state.alarmActive = false;
+    save();
+    hideAlarm();
+    renderAll();
+  });
+  $('snoozeBtn').addEventListener('click', ()=>{
+    hideAlarm();
+    setTimeout(()=>{
+      if(!(state.log[todayStr()] && state.log[todayStr()].taken)) showAlarm();
+    }, 10*60*1000);
+  });
+
+  function checkAlarm(){
+    const now = new Date();
+    const nowStr = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+    const today = todayStr();
+    const idx = dayIndexFor(today);
+    const alreadyTaken = state.log[today] && state.log[today].taken;
+    const shouldFire = idx!==null && isActivePillDay(idx) && !alreadyTaken && nowStr >= state.reminderTime;
+    if(shouldFire){
+      state.alarmActive = true; save();
+      if(!$('alarmOverlay').classList.contains('active')) showAlarm();
+    }
+  }
+
+  setInterval(checkAlarm, 20000);
+  checkAlarm();
+  if(state.alarmActive) showAlarm();
+
+  renderAll();
+
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    });
+  }
+})();
+</script>
+</body>
+</html>
