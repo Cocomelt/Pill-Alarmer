@@ -183,7 +183,9 @@
   .sheet h2{font-family:'Fraunces',serif;font-size:22px;margin:0 0 6px;}
   .sheet p{color:var(--ink-soft);font-size:14px;margin:0 0 22px;}
   .sheet .btn-primary{width:100%;padding:15px;font-size:15.5px;margin-bottom:10px;}
-  .sheet .btn-ghost{width:100%;padding:13px;}
+  .sheet .btn-ghost{width:100%;padding:13px;margin-bottom:10px;}
+  .sheet .btn-ghost:last-child{margin-bottom:0;}
+  .cell{cursor:pointer;}
 
   details summary{cursor:pointer;font-size:13px;color:var(--rose-deep);font-weight:600;}
   details p{font-size:12.5px;color:var(--ink-soft);line-height:1.6;}
@@ -249,8 +251,52 @@
   </div>
 
   <div class="card">
+    <p class="blister-title">Alarm reliability</p>
+    <div class="row">
+      <div><label>Sound</label><div class="hint">Repeating tone while alarm is active</div></div>
+      <input type="checkbox" id="soundToggle" checked>
+    </div>
+    <div class="row">
+      <div><label>Vibration</label><div class="hint">Vibrate in short bursts alongside sound</div></div>
+      <input type="checkbox" id="vibrateToggle" checked>
+    </div>
+    <div class="row">
+      <div><label>Keep nagging every</label><div class="hint">Re-sends a notification until you confirm</div></div>
+      <select id="renotifyMinutes">
+        <option value="0">Off</option>
+        <option value="5" selected>5 min</option>
+        <option value="10">10 min</option>
+        <option value="15">15 min</option>
+      </select>
+    </div>
+    <div class="row">
+      <div><label>Snooze length</label><div class="hint">How long "Snooze" waits before re-alarming</div></div>
+      <select id="snoozeMinutes">
+        <option value="5">5 min</option>
+        <option value="10" selected>10 min</option>
+        <option value="15">15 min</option>
+        <option value="30">30 min</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
     <p class="blister-title">History</p>
+    <p class="blister-sub">Tap any past or today's day in the pack above to correct it.</p>
     <div id="historyList"><div class="hint">No entries yet.</div></div>
+  </div>
+
+  <div class="card">
+    <p class="blister-title">Backup</p>
+    <p class="blister-sub">Your data lives only on this phone/browser. Export it after big updates so a reinstall or a cleared browser doesn't lose history.</p>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-ghost btn-block" id="exportData">Export backup</button>
+      <button class="btn btn-ghost btn-block" id="importData">Import backup</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json" style="display:none;">
+    <div style="margin-top:10px;">
+      <button class="btn btn-ghost btn-block" id="clearAll" style="color:var(--terracotta);">Clear all data</button>
+    </div>
   </div>
 
   <div class="footnote">
@@ -269,7 +315,18 @@
     <h2 id="alarmTitle">Time for your pill</h2>
     <p id="alarmSub">Take it now, then confirm below to stop the alarm.</p>
     <button class="btn btn-primary" id="confirmTaken">I've taken it</button>
-    <button class="btn btn-ghost" id="snoozeBtn">Snooze 10 minutes</button>
+    <button class="btn btn-ghost" id="snoozeBtn">Snooze</button>
+  </div>
+</div>
+
+<div class="overlay" id="editOverlay">
+  <div class="sheet">
+    <h2 id="editTitle">Edit day</h2>
+    <p id="editSub">Correct this day's record.</p>
+    <button class="btn btn-primary" id="editMarkTaken">Mark as taken now</button>
+    <button class="btn btn-ghost" id="editMarkMissed">Mark as missed</button>
+    <button class="btn btn-ghost" id="editClear">Clear entry</button>
+    <button class="btn btn-ghost" id="editCancel">Cancel</button>
   </div>
 </div>
 
@@ -292,15 +349,20 @@
     return Math.round((b-a)/86400000);
   }
 
-  let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || {
+  const defaults = {
     pillName: 'Diane 45',
     reminderTime: '20:00',
     packSize: 21,
     startDate: todayStr(),
     log: {},          // { 'YYYY-MM-DD': {taken:bool, time:'HH:MM'} }
     alarmActive: false,
-    notifOn: false
+    notifOn: false,
+    soundOn: true,
+    vibrateOn: true,
+    renotifyMinutes: 5,
+    snoozeMinutes: 10
   };
+  let state = Object.assign({}, defaults, JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || {});
 
   function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
@@ -309,7 +371,57 @@
   $('reminderTime').value = state.reminderTime;
   $('packSize').value = String(state.packSize);
   $('startDate').value = state.startDate;
+  $('soundToggle').checked = state.soundOn;
+  $('vibrateToggle').checked = state.vibrateOn;
+  $('renotifyMinutes').value = String(state.renotifyMinutes);
+  $('snoozeMinutes').value = String(state.snoozeMinutes);
   updateNotifUI();
+
+  $('soundToggle').addEventListener('change', e=>{ state.soundOn = e.target.checked; save(); });
+  $('vibrateToggle').addEventListener('change', e=>{ state.vibrateOn = e.target.checked; save(); });
+  $('renotifyMinutes').addEventListener('change', e=>{ state.renotifyMinutes = parseInt(e.target.value,10); save(); });
+  $('snoozeMinutes').addEventListener('change', e=>{ state.snoozeMinutes = parseInt(e.target.value,10); save(); });
+
+  // ---- backup / restore ----
+  $('exportData').addEventListener('click', ()=>{
+    const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'pill-companion-backup-' + todayStr() + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  });
+  $('importData').addEventListener('click', ()=> $('importFile').click());
+  $('importFile').addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const incoming = JSON.parse(reader.result);
+        if(!incoming || typeof incoming !== 'object' || !('log' in incoming)){
+          alert('That file doesn\'t look like a Pill Companion backup.'); return;
+        }
+        state = Object.assign({}, defaults, incoming);
+        save();
+        $('pillNameInput').value = state.pillName;
+        $('reminderTime').value = state.reminderTime;
+        $('packSize').value = String(state.packSize);
+        $('startDate').value = state.startDate;
+        $('soundToggle').checked = state.soundOn;
+        $('vibrateToggle').checked = state.vibrateOn;
+        $('renotifyMinutes').value = String(state.renotifyMinutes);
+        $('snoozeMinutes').value = String(state.snoozeMinutes);
+        updateNotifUI();
+        renderAll();
+        alert('Backup restored.');
+      }catch(err){
+        alert('Could not read that file.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
 
   $('pillNameInput').addEventListener('change', e=>{
     state.pillName = e.target.value.trim() || 'Pill';
@@ -327,7 +439,16 @@
   $('newPack').addEventListener('click', ()=>{
     if(!confirm('Start a new pack today? This resets the current pack view (your history stays saved).')) return;
     state.startDate = todayStr();
-    save(); renderAll();
+    state.alarmActive = false;
+    save();
+    $('startDate').value = state.startDate;   // keep the date field in sync with the reset
+    hideAlarm();
+    renderAll();
+  });
+  $('clearAll').addEventListener('click', ()=>{
+    if(!confirm('This permanently deletes all history and settings on this device. Export a backup first if you want to keep it. Continue?')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
   });
   $('enableNotif').addEventListener('click', ()=>{
     if(!('Notification' in window)){ alert('Notifications are not supported in this browser.'); return; }
@@ -382,122 +503,4 @@
         cls += 'future';
       }
       cell.className = cls;
-      cell.innerHTML = '<div class="bubble">'+ (cls.includes('taken') ? '✓' : (cls.includes('missed') ? '!' : label)) +'</div>';
-      grid.appendChild(cell);
-    }
-  }
-
-  // ---- streak ----
-  function computeStreak(){
-    let streak = 0;
-    let d = todayStr();
-    // if today already taken, count today too; otherwise start from yesterday
-    if(state.log[d] && state.log[d].taken){ streak++; d = todayStr(addDays(d,-1)); }
-    else { d = todayStr(addDays(d,-1)); }
-    while(true){
-      const idx = dayIndexFor(d);
-      if(idx===null) break;
-      if(!isActivePillDay(idx)){ d = todayStr(addDays(d,-1)); continue; } // break days don't reset streak
-      if(state.log[d] && state.log[d].taken){ streak++; d = todayStr(addDays(d,-1)); }
-      else break;
-    }
-    return streak;
-  }
-
-  // ---- history ----
-  function renderHistory(){
-    const entries = Object.keys(state.log).sort().reverse().slice(0,14);
-    const el = $('historyList');
-    if(entries.length===0){ el.innerHTML = '<div class="hint">No entries yet.</div>'; return; }
-    el.innerHTML = entries.map(date=>{
-      const e = state.log[date];
-      const tag = e.taken ? '<span class="tag taken">Taken '+(e.time||'')+'</span>' : '<span class="tag missed">Missed</span>';
-      return '<div class="history-item"><span class="d">'+date+'</span>'+tag+'</div>';
-    }).join('');
-  }
-
-  function renderAll(){
-    $('nextDoseTime').textContent = state.reminderTime;
-    $('streakNum').textContent = computeStreak();
-    renderBlister();
-    renderHistory();
-  }
-
-  // ---- alarm engine ----
-  let audioCtx = null;
-  let beepInterval = null;
-  function startBeep(){
-    if(beepInterval) return;
-    try{ audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return; }
-    function beep(){
-      const o = audioCtx.createOscillator();
-      const g = audioCtx.createGain();
-      o.type = 'sine'; o.frequency.value = 880;
-      g.gain.value = 0.15;
-      o.connect(g); g.connect(audioCtx.destination);
-      o.start(); o.stop(audioCtx.currentTime + 0.35);
-    }
-    beep();
-    beepInterval = setInterval(beep, 1600);
-  }
-  function stopBeep(){
-    if(beepInterval){ clearInterval(beepInterval); beepInterval=null; }
-  }
-
-  function showAlarm(){
-    $('alarmTitle').textContent = 'Time for your ' + state.pillName;
-    $('alarmOverlay').classList.add('active');
-    startBeep();
-    if(state.notifOn && 'Notification' in window){
-      try{ new Notification('Pill Companion', {body:'Time for your ' + state.pillName + '. Confirm in the app.'}); }catch(e){}
-    }
-  }
-  function hideAlarm(){
-    $('alarmOverlay').classList.remove('active');
-    stopBeep();
-  }
-
-  $('confirmTaken').addEventListener('click', ()=>{
-    const now = new Date();
-    const t = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-    state.log[todayStr()] = {taken:true, time:t};
-    state.alarmActive = false;
-    save();
-    hideAlarm();
-    renderAll();
-  });
-  $('snoozeBtn').addEventListener('click', ()=>{
-    hideAlarm();
-    setTimeout(()=>{
-      if(!(state.log[todayStr()] && state.log[todayStr()].taken)) showAlarm();
-    }, 10*60*1000);
-  });
-
-  function checkAlarm(){
-    const now = new Date();
-    const nowStr = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-    const today = todayStr();
-    const idx = dayIndexFor(today);
-    const alreadyTaken = state.log[today] && state.log[today].taken;
-    const shouldFire = idx!==null && isActivePillDay(idx) && !alreadyTaken && nowStr >= state.reminderTime;
-    if(shouldFire){
-      state.alarmActive = true; save();
-      if(!$('alarmOverlay').classList.contains('active')) showAlarm();
-    }
-  }
-
-  setInterval(checkAlarm, 20000);
-  checkAlarm();
-  if(state.alarmActive) showAlarm();
-
-  renderAll();
-
-  if('serviceWorker' in navigator){
-    window.addEventListener('load', ()=>{
-      navigator.serviceWorker.register('sw.js').catch(()=>{});
-    });
-  }
-})();
-</script>
-</body>
-</html>
+     
